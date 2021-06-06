@@ -1,0 +1,44 @@
+﻿@model Passbook.SampleWebService.Models.PassModel
+@{
+    ViewData["Title"] = "Create New Pass";
+}
+
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css" integrity="sha256-9mbkOfVho3ZPXfM7W8sV2SndrGDuh7wuyLjtsWeTI1Q=" crossorigin="anonymous" />
+</head>
+<body>
+    <div class="ui container">
+        <h1>Create Passes</h1>
+        <hr />
+        @if (Model.HasInvalidConfiguration)
+        {
+            <div class="ui red message">
+                Your configuration appears to be incomplete. Visit @Html.ActionLink("configuraiton", "checkconfiguration") for more details. If you don't correct the configuration, you
+                will be unable to generate and update passes.
+            </div>
+        }
+        @using (Html.BeginForm(FormMethod.Post, new { @class = "ui form" }))
+        {
+            @Html.ValidationSummary(false, "", new { @class = "ui message" })
+
+            <div class="required field">
+                @Html.LabelFor(m => m.SerialNumber)
+                @Html.TextBoxFor(m => m.SerialNumber)
+            </div>
+
+            <div class="required field">
+                @Html.LabelFor(m => m.Value)
+                @Html.TextBoxFor(m => m.Value)
+            </div>
+
+            <div class="required field">
+                @Html.LabelFor(m => m.Secret)
+                @Html.TextBoxFor(m => m.Secret)
+            </div>
+            <button class="ui primary button" type="submit">Submit</button>
+        }
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.js" integrity="sha256-t8GepnyPmw9t+foMh3mKNvcorqNHamSKtKRxxpUEgFI=" crossorigin="anonymous"></script>
+</body>
+</html>
