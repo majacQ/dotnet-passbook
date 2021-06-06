@@ -2,15 +2,17 @@
 
 A .NET Standard Library for generating Passbook packages for iOS Wallet (formerly Passbook)
 
+[![.NET Core](https://github.com/tomasmcguinness/dotnet-passbook/actions/workflows/dotnetcore.yml/badge.svg)](https://github.com/tomasmcguinness/dotnet-passbook/actions/workflows/dotnetcore.yml)
+
 ## Installing
 
-dotnet-passbook is also available to  download from NuGet.
+dotnet-passbook is also available to download from NuGet
 
 	Install-Package dotnet-passbook
 
 ## Why
 
-Creating passes for Apple's Passbook is pretty simple, but requires the use of PKI for signing manifest files, which isn't so simple! During the course of building the PassVerse (no longer available), I created a library that performs all the steps in C#. I decided to open source this library to other .NET developers. It allows you to generate, sign and zip Passbook files for use with Apple's Wallet (Available in iOS, starting at version 6).
+Creating passes for Apple's Passbook is pretty simple, but requires the use of PKI for signing manifest files, which isn't so simple! During the course of building PassVerse.com (no longer available), I created a .Net library that performs all the steps. I decided to open source this library for other .NET developers.
 
 ## Requirements
 
@@ -47,25 +49,28 @@ Since each pass has a set of mandatory data, fill that in first.
 Colours can be specified in HTML format or in RGB format.
 
     request.BackgroundColor = "#FFFFFF";
-	request.LabelColor = "#000000";
+    request.LabelColor = "#000000";
     request.ForegroundColor = "#000000";
-
-	request.BackgroundColor = "rgb(255,255,255)";
-	request.LabelColor = "rgb(0,0,0)";
+    
+    request.BackgroundColor = "rgb(255,255,255)";
+    request.LabelColor = "rgb(0,0,0)";
     request.ForegroundColor = "rgb(0,0,0)";
 
-To select the certificate there are two options. Firstly, you can use the Windows Certificate store to hold the certificates. You choose the location of your Passbook certificate by specifying the thumbprint of the certificates. The Apple WWDRC is also loaded  in this way, so you don't need to specify anything.
+To select the certificate there are two options. Firstly, you can use the Windows Certificate store to hold the certificates. You choose the location of your Passbook certificate by specifying the thumbprint of the certificates. 
 
- 	request.CertThumbprint = "22C5FADDFBF935E26E2DDB8656010C7D4103E02E";
+    request.CertThumbprint = "22C5FADDFBF935E26E2DDB8656010C7D4103E02E";
     request.CertLocation = System.Security.Cryptography.X509Certificates.StoreLocation.CurrentUser;
 
 An alternative way to pass the certificates into the PassGenerator is to load them as byte[] and add them to the request.
 
-	request.Certificate = certData; // Loaded from a database or other mechanism for example.
+    byte[] certData = <the contents of the certificate>; // e.g. File.ReadAllBytes(@"C:\path\to\your\certificate");
+    request.Certificate = certData;
     request.CertificatePassword = "abc123"; // The password for the certificate's private key.
-    string appleCertPath = (HttpContext.Current.Server.MapPath("~/Certificates
-    AppleWWDRCA.cer");
-	request.AppleWWDRCACertificate = File.ReadAllBytes(appleCertPath);
+
+The Apple WWDRC Certificate can only be loaded as a byte[].
+
+    var certData =  <the contents of the WWDR certificate>; // e.g. File.ReadAllBytes(@"C:\path\to\the\apple\wwdr\certificate");
+    request.AppleWWDRCACertificate = certData;
 
 Next, define the images you with to use. You must always include both standard and retina sized images. Images are supplied as byte[].
 
@@ -86,7 +91,7 @@ You can now provide more pass specific information. The Style must be set and th
     request.AddAuxiliaryField(new StandardField("seat", "Seat", "G5" ));
     request.AddAuxiliaryField(new StandardField("passenger-name", "Passenger", "Thomas Anderson"));
 
- 	request.TransitType = TransitType.PKTransitTypeAir;
+    request.TransitType = TransitType.PKTransitTypeAir;
 
 You can add a BarCode.
 
@@ -96,15 +101,15 @@ Starting with iOS 9, multiple barcodes are now supported. This helper method sup
 
 To link the pass to an existing app, you can add the app's Apple ID to the AssociatedStoreIdentifiers array.
 
-	request.AssociatedStoreIdentifiers.Add(551768478);
+    request.AssociatedStoreIdentifiers.Add(551768478);
 
 Finally, generate the pass by passing the request into the instance of the Generator. This will create the signed manifest and package all the the image files into zip.
 
-	byte[] generatedPass = generator.Generate(request);
+    byte[] generatedPass = generator.Generate(request);
 
 If you are using ASP.NET MVC for example, you can return this byte[] as a Passbook package
 
-	return new FileContentResult(generatedPass, "application/vnd.apple.pkpass");
+    return new FileContentResult(generatedPass, "application/vnd.apple.pkpass");
 	
 ### Troubleshooting Passes
 
@@ -116,46 +121,25 @@ If you're running the signing code within an IIS application, you might run into
 
 ## Updating passes
 
-To be able to update your pass, you must provide it with a callback. When generating your request, you must provide it with an AuthenticationToken and a WebServiceUrl.
+To be able to update your pass, you must provide it with a callback. When generating your request, you must provide it with an AuthenticationToken and a WebServiceUrl. Both of these values are required. The WebServiceUrl must be HTTPS by default, but you can disable this requirement in the iOS developer options on any device you're testing on.
 
-	request.AuthenticationToken = "vxwxd7J8AlNNFPS8k0a0FfUFtq0ewzFdc";
-    request.WebServiceUrl = "http://192.168.1.59:82/api";
+The authentication token is a string that will be included in the header of all requets made to your API. It's your responsibility to validate this token.
 
-There are several methods that the Pass will invoke when it's installed and updated. To see a reference implementation of this, look at the PassRegistrationController class in the Passbook.Sample.Web project.
+    request.AuthenticationToken = "<a secret to ensure authorized access>";
+    request.WebServiceUrl = "https://<your api>";
 
-The method that is of most interest in the beginning is the Post method as this actually captures the PushToken for the passes. The UpdateController has a very simple mechanism for sending an update. At present, the device ID is hard-coded, but this should provide a working reference.
+The webservice you point to must support Apple's protocol, outlined here https://developer.apple.com/library/archive/documentation/PassKit/Reference/PassKit_WebService/WebService.html#//apple_ref/doc/uid/TP40011988
 
-## Sample Web Application
-
-Included as part of the solution, the Passbook.Sample.Web project allows you to create some sample passes. You can run this and access the pages from your iPhone to see how the passes are installed and to see the registration and update mechanism in operation.
-
-The project also includes some dummy requests, so illustrate how you can create wrappers around the basic PassGenerationRequest. The above BoardPass can be generated using the BoardingPassGeneratorRequest. Instead of adding the fields explicitly, this encapsulates this logic, so you can call
-
-	request.Origin = "San Francisco";
-    request.OriginCode = "SFO";
-
-    request.Destination = "London";
-    request.DestinationCode = "LDN";
-
-    request.Seat = "7A";
-    request.BoardingGate = "F12";
-    request.PassengerName = "John Appleseed";
-
-    request.TransitType = TransitType.PKTransitTypeAir;
-
-/Home/Index will open a simple HTML page where you can choose the card type.  
-/Pass/EventTicket will generate an event based Pass (not fully functional).  
-/Pass/BoardingPass will generate simple boarding card.
-
-These passes are functional and can be saved in iOS Passbook.
+I'm working on a sample implementation of the protocol in ASP.Net Core and you can find it on the branch new-sample-webservice.
 
 ## NFC Support
 
-This library covers almost all of the fields in Passbook. At present the NFC fields are omitted, but I have a new branch that contains this key. I'm working with some users of the library on testing this feature since a special NFC certificate is required from Apple. Unfortunately, Apple won't supply a certificate, even for testing.
+As of version 2.0.1, the NFC keys are now supported. To use them, just set hte Nfc property with a new Nfc object. Both the message and encoded public key values are mandatory.
 
-## .Net Core
-
-I've had several people ask whether this library will support .Net Core. I've created a new branch called port-to-dotnet-standard, which cotains a new version of the library, built on .Net Standard 2.0. I've had to remove all the template support, since this uses System.Configuration, which doesn't really exist in .Net Standard. I haven't decided on an approach that will work for both .Net Framework and .Net Core configuration models. I will most likely release this as v2 of the library to Nuget at some point.
+	 PassGeneratorRequest request = new PassGeneratorRequest();
+         request.Nfc = new Nfc("THE NFC Message", "<encoded private key>");
+	 
+I cannot supply any information as to the values required since it's not available publically.
 
 ## Contribute
 
